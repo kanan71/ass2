@@ -1,0 +1,232 @@
+//**************************************************************
+//  Program for PWM Generation using PIC18F4550. 
+//  PWM output  	:       RC2
+//**************************************************************
+#include <p18f4550.h>
+
+#pragma config FOSC = HS //Oscillator Selection
+#pragma config WDT = OFF //Disable Watchdog timer
+#pragma config LVP = OFF //Disable Low Voltage Programming
+#pragma config PBADEN = OFF //Disable PORTB Analog inputs
+
+void myMsDelay (unsigned int time) 	// Definition of delay subroutine
+{
+	unsigned int i, j;
+	for (i = 0; i < time; i++)		// Loop for itime
+		for (j = 0; j < 710; j++);	// Calibrated for a 1 ms delay in MPLAB
+}
+
+void main()
+{ 
+	TRISCbits.TRISC2 = 0 ;	// Set PORTC, RC2 as output (CCP1)
+    TRISCbits.TRISC6 = 0 ;	// Set PORTC, RC6 as output (DCM IN3)
+	TRISCbits.TRISC7 = 0 ;	// Set PORTC, RC6 as output (DCM IN4)
+	PR2 = 0x4E;             // set PWM Frequency 4KHz  
+    CCP1CON = 0x0C;         // Configure CCP1CON as PWM mode.
+ 	T2CON = 0x07;		//Start timer 2 with prescaler 1:16
+	PORTCbits.RC6 = 1;	// Turn ON the Motor
+    PORTCbits.RC7 = 0;
+  while(1)	// Endless Loop
+	{
+	
+		
+		
+		// -----------------------------------
+		// ----------Duty Cycle 80%-----------
+		CCP1CONbits.DC1B0 = 0;
+		CCP1CONbits.DC1B1 = 1;
+		CCPR1L = 0x3E;
+		myMsDelay(2000);
+		// -----------------------------------
+		// -----------------------------------
+		// ----------Duty Cycle 60%-----------
+		CCP1CONbits.DC1B0 = 1;
+		CCP1CONbits.DC1B1 = 1;
+		CCPR1L = 0x2E;
+		myMsDelay(2000);
+		// -----------------------------------
+		// ----------Duty Cycle 40%-----------
+		CCP1CONbits.DC1B0 = 1;
+		CCP1CONbits.DC1B1 = 0;
+		CCPR1L = 0x1F;
+		myMsDelay(2000);
+		// ----------Duty Cycle 20%-----------
+		CCP1CONbits.DC1B0 = 0;
+		CCP1CONbits.DC1B1 = 1;
+		CCPR1L = 0x0F;
+		myMsDelay(2000);
+ 	}   
+ 
+}
+
+//Includes
+#include <p18f4550.h>			//Include Controller specific .h
+//Declarations
+#define lrbit 	PORTBbits.RB4   //SW1 interfaced to RB4
+#define rlbit 	PORTBbits.RB5	//SW2 interfaced to RB5
+#define buzzer 	PORTCbits.RC2	//Buzzer interfaced to RC2
+#define relay 	PORTCbits.RC1	//Relay interfaced to RC1
+
+//Function Prototypes
+void msdelay (unsigned int time);//Function for delay
+
+//Start of Program Code
+void main()						//Main Program
+{
+	unsigned char val=0;		//Variable to latch the switch condition
+    INTCON2bits.RBPU=0;   		//To Activate the internal pull on PORTB
+	ADCON1 = 0x0F;				//To disable the all analog inputs	
+
+	TRISBbits.TRISB4=1;  		//To configure RB4 as input for sensing SW0
+	TRISBbits.TRISB5=1; 		//To configure RB5 as input for sensing SW1
+
+	TRISCbits.TRISC1=0;   		//To configure RC1 (relay) as output
+	TRISCbits.TRISC2=0;			//To configure RC2 (buzzer) as output
+	TRISD = 0x00;				//To configure PORTD (LED) as output
+		
+	PORTD = 0x00;				//Initial Value for LED
+	buzzer = 0;					//Initial Value for Buzzer
+	relay = 0;					//Initial Value for Relay
+
+while (1)						//While loop for repeated operation
+	{
+	if (!(lrbit)) 				//To check whether SW0 is pressed
+		val = 1;				// Latch the status of switch SW0
+	if (!(rlbit))				//To check whether SW1 is pressed
+		val = 2;				// Latch the status of switch SW1
+ 
+	if (val == 1)
+	   {
+		buzzer = 1;
+		relay = 1;
+		PORTD = PORTD >>1;  	//Shift left by 1 bit
+		if (PORTD == 0x00)
+			PORTD = 0x80; 		// Make the MSB bit equal to 1
+		msdelay(250);
+	   }
+	if (val == 2)
+	   {
+		buzzer = 0;
+		relay = 0;
+		PORTD = PORTD<<1;    	//Shift right by 1 bit
+		if (PORTD == 0x00)
+			PORTD = 0x01;  		// Make the LSB bit eqaul to 1
+		msdelay(250);
+	   }
+	}
+} 								//End of the Program
+
+//Function Definitions
+void msdelay (unsigned int time)
+{
+unsigned int i, j;
+ for (i = 0; i < time; i++)
+	 for (j = 0; j < 275; j++);	//Calibrated for a 1 ms delay in MPLAB
+}
+
+
+
+
+1)Internal to Internal
+
+ORG 0000H
+CLR A
+MOV R0, #11H
+MOV R1, #22H
+MOV A, @R0
+MOV @R1, A
+END
+
+2)Internal to External
+
+ORG 0000H
+CLR A
+MOV R0, #5H
+MOV DPTR, #2000H
+MOV R2, #2
+UP:MOV A, @R0
+MOVX @DPTR, A
+INC R0
+INC DPL
+DJNZ R2, UP
+END
+
+3)External to External
+
+ORG 0000H
+CLR A
+MOV R2, #03
+MOV DPTR, #1200H
+UP:MOV A, @DPTR
+INC DPH, #20H
+MOVX @DPTR,A
+MOV DPH, #1
+INC DPTR
+DJNZ R2, UP
+END
+
+4)External to Internal
+
+ORG 0000H
+CLR A
+MOV R2, #04
+MOV DPTR, #3040H
+MOV R1, #22H
+UP:MOV A, @DPTR
+MOV @R1, A
+INC R1
+INC DPL
+DJNZ R2, UP
+END
+
+
+//Expt.No.4: Generation of Square wave using timer interrupt
+//Includes
+#include <p18f4550.h>
+//Configration bits setting/
+#pragma config FOSC = HS //Oscillator Selection
+#pragma config WDT = OFF //Disable Watchdog timer
+#pragma config LVP = OFF //Disable Low Voltage Programming
+#pragma config PBADEN = OFF //Disable PORTB Analog inputs
+
+
+//Timer ISR Function Prototype
+void timer_isr(void);
+
+// Timer ISR Definition
+#pragma interrupt timer_isr
+void timer_isr(void)
+{
+	TMR0H = 0X6D;          //Reload the timer values after overflow
+	TMR0L = 0X82;
+	PORTBbits.RB0 = ~PORTBbits.RB0; //Toggle the RB0
+ 	INTCONbits.TMR0IF = 0; //Reset the timer overflow interrupt flag
+}
+
+//Interrupt Vector for Timer0 Interrupt
+#pragma code _HIGH_INTERRUPT_VECTOR = 0x0008
+void high_ISR (void)
+{
+	_asm 
+		goto timer_isr //The program is relocated to execute the ISR
+	_endasm    
+}
+#pragma code
+
+// Start of main Program
+void main()
+{	
+	ADCON1 = 0x0F;        //Configuring the PORTE pins as digital I/O 
+	TRISBbits.TRISB0 = 0; //Configruing the RB0 as output
+	PORTBbits.RB0 = 0;    //Setting the initial value	
+	T0CON = 0x02;		  //Set the timer to 16-bit,Fosc/4,1:16 prescaler
+  	TMR0H = 0x85;         //load timer value to genearate delay 50ms
+  	TMR0L = 0xEE;
+   	INTCONbits.TMR0IF = 0;// Clear Timer0 overflow flag
+	INTCONbits.TMR0IE = 1;// TMR0 interrupt enabled
+ 	T0CONbits.TMR0ON = 1; // Start timer0
+	INTCONbits.GIE = 1;	  // Global interrupt enabled
+
+	while(1);             //Program execution stays here untill the timer overflow interrupt is generated
+	
+}
